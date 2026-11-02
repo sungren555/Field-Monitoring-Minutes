@@ -69,11 +69,11 @@ h2{font-size:1.1rem;margin:28px 0 8px}
   <label>សកម្មភាព<select id="act" required></select></label>
   <div class="row">
     <label>កាលបរិច្ឆេទ<input type="date" id="date" required></label>
-    <label>ម៉ោងធ្វើការ (ម៉ោង)<input type="number" id="hours" min="0.25" max="24" step="0.25" required></label>
+    <label>ទីតាំង<input id="loc" placeholder="ភូមិ / ឃុំ / ស្រុក" required></label>
   </div>
   <div class="row">
-    <label>ទីតាំង<input id="loc" placeholder="ភូមិ / ឃុំ / ស្រុក" required></label>
-    <label>អ្នកចូលរួម (ចំនួន)<input type="number" id="ppl" min="0" placeholder="មិនបង្ខំ"></label>
+    <label>អ្នកចូលរួមសរុប (នាក់)<input type="number" id="tot" min="0" inputmode="numeric" placeholder="មិនបង្ខំ"></label>
+    <label>ក្នុងនោះស្ត្រី (នាក់)<input type="number" id="wom" min="0" inputmode="numeric" placeholder="មិនបង្ខំ"></label>
   </div>
   <label>កំណត់ត្រា / លទ្ធផល<textarea id="note" rows="3"></textarea></label>
   <div class="msg" id="msg" role="status"></div>
@@ -84,8 +84,9 @@ h2{font-size:1.1rem;margin:28px 0 8px}
 <div id="mine"></div>
 </main>
 
-<script>https://script.google.com/macros/s/AKfycbxmceczGxDx8RLZsGSPOhwtfP3HnQtRNOynUcdRkq1qdvl2KgB6i0Ui3nIvZh-u5cyJ/exec
-var API_URL = "";
+<script>
+// ដាក់ Web app URL របស់ Apps Script នៅទីនេះ (ឬបិទភ្ជាប់ក្នុងប្រអប់ដំឡើងពេលបើកលើកដំបូង)
+var API_URL = "https://script.google.com/macros/s/AKfycbxmceczGxDx8RLZsGSPOhwtfP3HnQtRNOynUcdRkq1qdvl2KgB6i0Ui3nIvZh-u5cyJ/exec";
 
 var $ = function(i){return document.getElementById(i)};
 var cfg = null;
@@ -138,7 +139,7 @@ function loadMine(){
   fetch(api()+"?action=logs&staff="+encodeURIComponent(n)).then(function(r){return r.json()}).then(function(d){
     if(!d.ok)throw new Error(d.error);
     $("mine").innerHTML=d.logs.length?d.logs.map(function(l){
-      return '<div class="log '+(l.project==="CE"?"c":"r")+'"><div class="top"><span>'+esc(l.activity)+'</span><span>'+esc(l.hours)+' ម៉ោង</span></div><div class="meta">'+esc(l.date)+' · '+esc(l.project)+' · '+esc(l.location)+'</div></div>'}).join("")
+      return '<div class="log '+(l.project==="CE"?"c":"r")+'"><div class="top"><span>'+esc(l.activity)+'</span><span>'+(l.total?esc(l.total)+' នាក់'+(l.women?' (ស្ត្រី '+esc(l.women)+')':''):'')+'</span></div><div class="meta">'+esc(l.date)+' · '+esc(l.project)+' · '+esc(l.location)+'</div></div>'}).join("")
       :'<div class="empty">មិនទាន់មានកំណត់ហេតុក្នុងខែនេះទេ។</div>';
   }).catch(function(){$("mine").innerHTML='<div class="empty">មិនអាចទាញកំណត់ហេតុបានទេ។</div>'});
 }
@@ -152,15 +153,16 @@ $("f").addEventListener("submit",function(e){
   e.preventDefault();
   var c=(cfg&&cfg.activities[proj()]||[])[$("cat").value];
   var p={staff:$("staff").value,date:$("date").value,project:proj(),category:c?c.category:"",activity:$("act").value,
-    location:$("loc").value.trim(),hours:parseFloat($("hours").value),participants:$("ppl").value,notes:$("note").value.trim()};
+    location:$("loc").value.trim(),total:$("tot").value,women:$("wom").value,notes:$("note").value.trim()};
   var s=cfg&&cfg.staff.filter(function(x){return x.name===p.staff})[0];p.section=s?s.section:"";
-  if(!p.staff||!p.date||!c||!p.activity||!p.location||!(p.hours>0)){say("សូមបំពេញ ឈ្មោះ Category សកម្មភាព កាលបរិច្ឆេទ ម៉ោង និងទីតាំង។","err");return}
+  if(!p.staff||!p.date||!c||!p.activity||!p.location){say("សូមបំពេញ ឈ្មោះ Category សកម្មភាព កាលបរិច្ឆេទ និងទីតាំង។","err");return}
+  if(p.total!==""&&p.women!==""&&Number(p.women)>Number(p.total)){say("ចំនួនស្ត្រីមិនអាចច្រើនជាងចំនួនសរុបបានទេ។","err");return}
   $("go").disabled=true;say("កំពុងបញ្ជូន...");
   fetch(api(),{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(p)})
     .then(function(r){return r.json()}).then(function(d){
       if(!d.ok)throw new Error(d.error);
       say("បានបញ្ជូនចូលផ្ទាំង "+d.tab+" ហើយ ✓","ok");
-      ["hours","loc","ppl","note"].forEach(function(i){$(i).value=""});$("act").value="";loadMine();
+      ["loc","tot","wom","note"].forEach(function(i){$(i).value=""});$("act").value="";loadMine();
     }).catch(function(e){say("បញ្ជូនមិនបានទេ៖ "+e.message,"err")})
     .then(function(){$("go").disabled=false});
 });
