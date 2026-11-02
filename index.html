@@ -204,24 +204,38 @@ $("staff").onchange=function(){onStaff(false)};
 document.querySelectorAll('input[name=proj]').forEach(function(x){x.onchange=function(){ls("fl_proj","1");fillCats()}});
 $("cat").onchange=fillActs;
 
-$("f").addEventListener("submit",function(e){
-  e.preventDefault();
-  var c=(cfg&&cfg.activities[proj()]||[])[$("cat").value];
-  var p={staff:$("staff").value,date:$("date").value,project:proj(),category:c?c.category:"",activity:$("act").value,
-    location:getLoc(),total:$("tot").value,women:$("wom").value,notes:$("note").value.trim()};
+function validate(p){
+  var c=(cfg&&cfg.activities[p.project]||[]).filter(function(x){return x.category===p.category})[0];
+  if(!p.staff||!p.date||!c||!p.activity||!p.location)return "សូមបំពេញ ឈ្មោះ Category សកម្មភាព កាលបរិច្ឆេទ និងទីតាំង។";
+  if(p.total!==""&&p.women!==""&&Number(p.women)>Number(p.total))return "ចំនួនស្ត្រីមិនអាចច្រើនជាងចំនួនសរុបបានទេ។";
+  return "";
+}
+function send(p,draftId,btns){
   var s=cfg&&cfg.staff.filter(function(x){return x.name===p.staff})[0];p.section=s?s.section:"";
-  if(!p.staff||!p.date||!c||!p.activity||!p.location){say("សូមបំពេញ ឈ្មោះ Category សកម្មភាព កាលបរិច្ឆេទ និងទីតាំង។","err");return}
-  if(p.total!==""&&p.women!==""&&Number(p.women)>Number(p.total)){say("ចំនួនស្ត្រីមិនអាចច្រើនជាងចំនួនសរុបបានទេ។","err");return}
-  $("go").disabled=true;say("កំពុងបញ្ជូន...");
-  fetch(api(),{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(p)})
+  var body=JSON.stringify({staff:p.staff,date:p.date,project:p.project,category:p.category,activity:p.activity,location:p.location,total:p.total,women:p.women,notes:p.notes,section:p.section});
+  btns.forEach(function(b){b.disabled=true});say("កំពុងបញ្ជូន...");
+  fetch(api(),{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:body})
     .then(function(r){return r.json()}).then(function(d){
       if(!d.ok)throw new Error(d.error);
       say("បានបញ្ជូនចូលផ្ទាំង "+d.tab+" ហើយ ✓","ok");
-      if(editId){delDraft(editId,true)}editId=null;showEdit();
-      ["loc","tot","wom","note"].forEach(function(i){$(i).value=""});$("vil").value="";showLoc();$("act").value="";loadMine();
+      if(draftId)delDraft(draftId,true);
+      if(draftId&&draftId===editId||!draftId){editId=null;showEdit();clearForm()}
+      loadMine();
     }).catch(function(e){say("បញ្ជូនមិនបានទេ៖ "+e.message,"err")})
-    .then(function(){$("go").disabled=false});
+    .then(function(){btns.forEach(function(b){b.disabled=false})});
+}
+$("f").addEventListener("submit",function(e){
+  e.preventDefault();
+  var p=formData(),er=validate(p);
+  if(er){say(er,"err");return}
+  send(p,editId,[$("go"),$("saveDraft")]);
 });
+function submitDraft(id){
+  var d=getDrafts().filter(function(x){return x.id===id})[0];if(!d)return;
+  var er=validate(d);
+  if(er){loadDraft(id);say("សេចក្ដីព្រាងនេះមិនទាន់ពេញលេញ៖ "+er,"err");return}
+  send(d,id,[$("go"),$("saveDraft")]);
+}
 
 /* ===== IRPG -> ភូមិ ===== */
 var IRPG={
@@ -278,7 +292,8 @@ function renderDrafts(){
   $("drafts").innerHTML=a.map(function(d){
     return '<div class="draft"><div class="top"><span>'+esc(d.activity||"(មិនទាន់ជ្រើសសកម្មភាព)")+'</span><span>'+(d.total?esc(d.total)+' នាក់'+(d.women?' (ស្ត្រី '+esc(d.women)+')':''):'')+'</span></div>'+
       '<div class="meta">'+esc(d.staff)+' · '+esc(d.date||"")+' · '+esc(d.project)+' · '+esc(d.location||"")+'</div>'+
-      '<div class="act"><button type="button" data-e="'+d.id+'">កែ (Edit)</button><button type="button" data-d="'+d.id+'">លុប</button></div></div>'}).join("");
+      '<div class="act"><button type="button" data-s="'+d.id+'" style="background:var(--btn);color:var(--btnink);border-color:var(--btn)">Submit</button><button type="button" data-e="'+d.id+'">កែ (Edit)</button><button type="button" data-d="'+d.id+'">លុប</button></div></div>'}).join("");
+  $("drafts").querySelectorAll("[data-s]").forEach(function(b){b.onclick=function(){submitDraft(b.getAttribute("data-s"))}});
   $("drafts").querySelectorAll("[data-e]").forEach(function(b){b.onclick=function(){loadDraft(b.getAttribute("data-e"))}});
   $("drafts").querySelectorAll("[data-d]").forEach(function(b){b.onclick=function(){delDraft(b.getAttribute("data-d"))}});
 }
