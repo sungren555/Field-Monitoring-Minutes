@@ -224,7 +224,7 @@ function send(p,draftId,btns){
       if(draftId)delDraft(draftId,true);
       if(draftId&&draftId===editId||!draftId){editId=null;showEdit();clearForm()}
       loadMine();
-    }).catch(function(e){say("បញ្ជូនមិនបានទេ៖ "+e.message,"err")})
+    }).catch(function(e){say(/failed to fetch|networkerror|load failed/i.test(e.message)?"បញ្ជូនមិនបានទេ៖ មិនអាចភ្ជាប់ទៅ Apps Script (ពិនិត្យអ៊ីនធឺណិត ឬ Deploy)។ ទិន្នន័យនៅរក្សាទុក សូមចុច Save រួចព្យាយាមម្តងទៀត។":"បញ្ជូនមិនបានទេ៖ "+e.message,"err")})
     .then(function(){btns.forEach(function(b){b.disabled=false})});
 }
 $("f").addEventListener("submit",function(e){
