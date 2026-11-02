@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>កំណត់ហេតុសកម្មភាពចុះ Field</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2b4a2f">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f5ee;--surface:#fff;--ink:#1d2a1f;--muted:#5d6b5f;--line:#d5dccd;--rice:#b8860b;--rice-bg:#f6ecc9;--ce:#2f6f6a;--ce-bg:#d7ece9;--btn:#2b4a2f;--btnink:#fff;--err:#a33;--ok:#2b6b34}
+@media (prefers-color-scheme:dark){:root{--bg:#141a15;--surface:#1e271f;--ink:#e8eee5;--muted:#9fad9f;--line:#334034;--rice:#e3b94a;--rice-bg:#3a3217;--ce:#6cc2ba;--ce-bg:#1d3a37;--btn:#9bd09f;--btnink:#10200f;--err:#f08a8a;--ok:#8fd49a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans Khmer",system-ui,sans-serif;line-height:1.7}
+main{max-width:760px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.5rem;margin:8px 0 4px}
+.sub{color:var(--muted);margin:0 0 16px}
+form{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:grid;gap:4px;font-weight:600;font-size:.92rem}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid var(--ce);outline-offset:1px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg label{margin:0;border:2px solid var(--line);border-radius:10px;padding:10px;text-align:center;cursor:pointer}
+.seg input:checked+label.r{background:var(--rice-bg);border-color:var(--rice)}
+.seg input:checked+label.c{background:var(--ce-bg);border-color:var(--ce)}
+.seg input:focus-visible+label{outline:3px solid var(--ce)}
+.btn{font:inherit;font-weight:700;background:var(--btn);color:var(--btnink);border:0;border-radius:10px;padding:12px 16px;cursor:pointer}
+.btn[disabled]{opacity:.6;cursor:wait}
+.msg{min-height:1.6em;font-size:.92rem}
+.msg.err{color:var(--err)}.msg.ok{color:var(--ok)}
+.setup{background:var(--rice-bg);border:1px solid var(--rice);border-radius:12px;padding:12px;margin-bottom:16px;display:grid;gap:8px}
+.setup[hidden]{display:none}
+h2{font-size:1.1rem;margin:28px 0 8px}
+.log{background:var(--surface);border:1px solid var(--line);border-left-width:6px;border-radius:10px;padding:8px 12px;margin-bottom:8px}
+.log.r{border-left-color:var(--rice)}.log.c{border-left-color:var(--ce)}
+.log .top{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.log .meta{color:var(--muted);font-size:.88rem}
+.empty{color:var(--muted);padding:16px;text-align:center;border:1px dashed var(--line);border-radius:10px}
+@media(max-width:520px){.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<h1>កំណត់ហេតុសកម្មភាពចុះ Field</h1>
+<p class="sub">ទិន្នន័យបុគ្គលិក និងសកម្មភាពទាញពី Google Sheet ហើយកំណត់ហេតុរក្សាទុកតាមផ្ទាំងខែ។</p>
+
+<div class="setup" id="setup" hidden>
+  <b>ភ្ជាប់ជាមួយ Apps Script</b>
+  <span>បិទភ្ជាប់ Web app URL (បញ្ចប់ដោយ /exec)</span>
+  <input id="apiIn" placeholder="https://script.google.com/macros/s/.../exec">
+  <button class="btn" type="button" id="apiSave">រក្សាទុក URL</button>
+</div>
+
+<form id="f" novalidate>
+  <label>ឈ្មោះបុគ្គលិក<select id="staff" required></select></label>
+  <div id="secInfo" class="sub" style="margin:-6px 0 0"></div>
+  <div>
+    <div style="font-weight:600;font-size:.92rem;margin-bottom:4px">គម្រោង</div>
+    <div class="seg">
+      <div><input type="radio" name="proj" id="p1" value="IBIS Rice" checked><label for="p1" class="r">IBIS Rice</label></div>
+      <div><input type="radio" name="proj" id="p2" value="CE"><label for="p2" class="c">CE (Community Engagement)</label></div>
+    </div>
+  </div>
+  <label>ប្រភេទ (Category)<select id="cat" required></select></label>
+  <label>សកម្មភាព<select id="act" required></select></label>
+  <div class="row">
+    <label>កាលបរិច្ឆេទ<input type="date" id="date" required></label>
+    <label>ម៉ោងធ្វើការ (ម៉ោង)<input type="number" id="hours" min="0.25" max="24" step="0.25" required></label>
+  </div>
+  <div class="row">
+    <label>ទីតាំង<input id="loc" placeholder="ភូមិ / ឃុំ / ស្រុក" required></label>
+    <label>អ្នកចូលរួម (ចំនួន)<input type="number" id="ppl" min="0" placeholder="មិនបង្ខំ"></label>
+  </div>
+  <label>កំណត់ត្រា / លទ្ធផល<textarea id="note" rows="3"></textarea></label>
+  <div class="msg" id="msg" role="status"></div>
+  <button class="btn" type="submit" id="go">Submit</button>
+</form>
+
+<h2>កំណត់ហេតុខែនេះរបស់ខ្ញុំ</h2>
+<div id="mine"></div>
+</main>
+
+<script>
+// ដាក់ Web app URL របស់ Apps Script នៅទីនេះ (ឬបិទភ្ជាប់ក្នុងប្រអប់ដំឡើងពេលបើកលើកដំបូង)
+var API_URL = "";
+
+var $ = function(i){return document.getElementById(i)};
+var cfg = null;
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+function api(){return API_URL||ls("fl_api")||""}
+function say(t,c){var m=$("msg");m.textContent=t;m.className="msg "+(c||"")}
+function proj(){return document.querySelector('input[name=proj]:checked').value}
+function today(){var d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
+
+function loadConfig(){
+  if(!api()){$("setup").hidden=false;say("សូមភ្ជាប់ URL របស់ Apps Script ជាមុន។","err");return}
+  var cached=ls("fl_cfg");
+  if(cached){try{cfg=JSON.parse(cached);fillStaff()}catch(e){}}
+  fetch(api()+"?action=config").then(function(r){return r.json()}).then(function(d){
+    if(!d.ok)throw new Error(d.error);
+    cfg=d;ls("fl_cfg",JSON.stringify(d));fillStaff();say("");
+  }).catch(function(e){if(!cfg)say("មិនអាចទាញទិន្នន័យពី Sheet បានទេ៖ "+e.message,"err")});
+}
+
+function fillStaff(){
+  var keep=ls("fl_staff")||$("staff").value;
+  $("staff").innerHTML='<option value="">ជ្រើសរើសឈ្មោះ</option>'+cfg.staff.map(function(s){return '<option>'+esc(s.name)+'</option>'}).join("");
+  if(keep)$("staff").value=keep;
+  onStaff(true);
+}
+function onStaff(initial){
+  var s=cfg.staff.filter(function(x){return x.name===$("staff").value})[0];
+  $("secInfo").textContent=s&&s.section?"ផ្នែក៖ "+s.section:"";
+  if(s&&!initial||s&&initial&&!ls("fl_proj")){
+    var sec=s.section.toLowerCase();
+    if(sec.indexOf("ibis")>-1)$("p1").checked=true;
+    else if(sec.indexOf("community")>-1||sec.indexOf("ce")>-1)$("p2").checked=true;
+  }
+  if(s)ls("fl_staff",s.name);
+  fillCats();loadMine();
+}
+function fillCats(){
+  var cats=(cfg.activities[proj()]||[]);
+  $("cat").innerHTML='<option value="">ជ្រើសរើស Category</option>'+cats.map(function(c,i){return '<option value="'+i+'">'+esc(c.category)+'</option>'}).join("");
+  fillActs();
+}
+function fillActs(){
+  var c=(cfg.activities[proj()]||[])[$("cat").value];
+  $("act").innerHTML='<option value="">ជ្រើសរើសសកម្មភាព</option>'+(c?c.items.map(function(a){return '<option>'+esc(a)+'</option>'}).join(""):"");
+}
+function loadMine(){
+  var n=$("staff").value;
+  if(!n||!api()){$("mine").innerHTML='<div class="empty">ជ្រើសរើសឈ្មោះដើម្បីមើលកំណត់ហេតុ។</div>';return}
+  fetch(api()+"?action=logs&staff="+encodeURIComponent(n)).then(function(r){return r.json()}).then(function(d){
+    if(!d.ok)throw new Error(d.error);
+    $("mine").innerHTML=d.logs.length?d.logs.map(function(l){
+      return '<div class="log '+(l.project==="CE"?"c":"r")+'"><div class="top"><span>'+esc(l.activity)+'</span><span>'+esc(l.hours)+' ម៉ោង</span></div><div class="meta">'+esc(l.date)+' · '+esc(l.project)+' · '+esc(l.location)+'</div></div>'}).join("")
+      :'<div class="empty">មិនទាន់មានកំណត់ហេតុក្នុងខែនេះទេ។</div>';
+  }).catch(function(){$("mine").innerHTML='<div class="empty">មិនអាចទាញកំណត់ហេតុបានទេ។</div>'});
+}
+
+$("apiSave").onclick=function(){var v=$("apiIn").value.trim();if(!/^https:\/\/script\.google\.com\/.+\/exec/.test(v)){say("URL មិនត្រឹមត្រូវ។ ត្រូវបញ្ចប់ដោយ /exec","err");return}ls("fl_api",v);$("setup").hidden=true;say("");loadConfig()};
+$("staff").onchange=function(){onStaff(false)};
+document.querySelectorAll('input[name=proj]').forEach(function(x){x.onchange=function(){ls("fl_proj","1");fillCats()}});
+$("cat").onchange=fillActs;
+
+$("f").addEventListener("submit",function(e){
+  e.preventDefault();
+  var c=(cfg&&cfg.activities[proj()]||[])[$("cat").value];
+  var p={staff:$("staff").value,date:$("date").value,project:proj(),category:c?c.category:"",activity:$("act").value,
+    location:$("loc").value.trim(),hours:parseFloat($("hours").value),participants:$("ppl").value,notes:$("note").value.trim()};
+  var s=cfg&&cfg.staff.filter(function(x){return x.name===p.staff})[0];p.section=s?s.section:"";
+  if(!p.staff||!p.date||!c||!p.activity||!p.location||!(p.hours>0)){say("សូមបំពេញ ឈ្មោះ Category សកម្មភាព កាលបរិច្ឆេទ ម៉ោង និងទីតាំង។","err");return}
+  $("go").disabled=true;say("កំពុងបញ្ជូន...");
+  fetch(api(),{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(p)})
+    .then(function(r){return r.json()}).then(function(d){
+      if(!d.ok)throw new Error(d.error);
+      say("បានបញ្ជូនចូលផ្ទាំង "+d.tab+" ហើយ ✓","ok");
+      ["hours","loc","ppl","note"].forEach(function(i){$(i).value=""});$("act").value="";loadMine();
+    }).catch(function(e){say("បញ្ជូនមិនបានទេ៖ "+e.message,"err")})
+    .then(function(){$("go").disabled=false});
+});
+
+$("date").value=today();
+loadConfig();
+if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(function(){})}
+</script>
+</body>
+</html>
