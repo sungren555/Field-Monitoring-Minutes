@@ -51,9 +51,20 @@ summary span.n{color:var(--muted);font-weight:400;white-space:nowrap;font-size:.
 table{border-collapse:collapse;width:100%;font-size:.88rem}
 th,td{text-align:left;padding:6px 8px;border-top:1px solid var(--line);vertical-align:top}
 td.num,th.num{text-align:right;white-space:nowrap}
-.grand{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.grand{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px}
 .grand div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .grand b{display:block;font-size:1.3rem;line-height:1.3}.grand span{color:var(--muted);font-size:.85rem}
+.btn2{font:inherit;font-weight:700;background:var(--surface);color:var(--ink);border:2px solid var(--btn);border-radius:10px;padding:10px 16px;cursor:pointer}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.draft{background:var(--surface);border:1px dashed var(--rice);border-left:6px solid var(--rice);border-radius:10px;padding:8px 12px;margin-bottom:8px}
+.draft .top{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.draft .meta{color:var(--muted);font-size:.88rem}
+.draft .act{display:flex;gap:8px;margin-top:6px}
+.draft .act button{font:inherit;font-size:.88rem;font-weight:600;border-radius:8px;padding:4px 12px;cursor:pointer;background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.editing{background:var(--rice-bg);border:1px solid var(--rice);border-radius:10px;padding:6px 10px;font-size:.9rem}
+.editing[hidden]{display:none}
+.bd{background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-bottom:12px;padding:8px 0 4px}
+.bd h3{font-size:.98rem;margin:0 0 4px;padding:0 12px}
 @media(max-width:520px){.row{grid-template-columns:1fr}}
 </style>
 </head>
@@ -97,8 +108,17 @@ td.num,th.num{text-align:right;white-space:nowrap}
   </div>
   <label>កំណត់ត្រា / លទ្ធផល<textarea id="note" rows="3"></textarea></label>
   <div class="msg" id="msg" role="status"></div>
-  <button class="btn" type="submit" id="go">Submit</button>
+  <div class="editing" id="editBar" hidden></div>
+  <div class="btns">
+    <button class="btn2" type="button" id="saveDraft">Save ទុកសិន</button>
+    <button class="btn" type="submit" id="go">Submit</button>
+  </div>
 </form>
+
+<div id="draftWrap" hidden>
+  <h2>សេចក្ដីព្រាងដែលបាន Save (មិនទាន់ Submit)</h2>
+  <div id="drafts"></div>
+</div>
 
 <h2>កំណត់ហេតុខែនេះរបស់ខ្ញុំ</h2>
 <div id="mine"></div>
@@ -108,6 +128,10 @@ td.num,th.num{text-align:right;white-space:nowrap}
   <div class="row" style="margin-bottom:12px">
     <label>ខែ<select id="sm"><option value="">ខែទាំងអស់</option></select></label>
     <label>ផ្នែក (Section)<select id="ss"><option value="">ទាំងអស់</option></select></label>
+  </div>
+  <div class="row" style="margin-bottom:12px">
+    <label>Category<select id="sc"><option value="">ទាំងអស់</option></select></label>
+    <label>សកម្មភាព (Activity)<select id="sa"><option value="">ទាំងអស់</option></select></label>
   </div>
   <div id="sumOut"></div>
 </div>
@@ -191,10 +215,77 @@ $("f").addEventListener("submit",function(e){
     .then(function(r){return r.json()}).then(function(d){
       if(!d.ok)throw new Error(d.error);
       say("បានបញ្ជូនចូលផ្ទាំង "+d.tab+" ហើយ ✓","ok");
+      if(editId){delDraft(editId,true)}editId=null;showEdit();
       ["loc","tot","wom","note"].forEach(function(i){$(i).value=""});$("act").value="";loadMine();
     }).catch(function(e){say("បញ្ជូនមិនបានទេ៖ "+e.message,"err")})
     .then(function(){$("go").disabled=false});
 });
+
+/* ===== Draft (Save ទុកសិន) ===== */
+var editId=null;
+function getDrafts(){try{return JSON.parse(ls("fl_drafts")||"[]")}catch(e){return[]}}
+function putDrafts(a){ls("fl_drafts",JSON.stringify(a))}
+function formData(){
+  var c=(cfg&&cfg.activities[proj()]||[])[$("cat").value];
+  return {staff:$("staff").value,date:$("date").value,project:proj(),category:c?c.category:"",activity:$("act").value,
+    location:$("loc").value.trim(),total:$("tot").value,women:$("wom").value,notes:$("note").value.trim()};
+}
+function showEdit(){
+  var b=$("editBar");
+  if(editId){b.hidden=false;b.innerHTML='កំពុងកែសេចក្ដីព្រាង · <a href="#" id="cancelEdit">បោះបង់ការកែ</a>';
+    $("cancelEdit").onclick=function(e){e.preventDefault();editId=null;showEdit();clearForm();say("")};
+    $("saveDraft").textContent="Save ការកែប្រែ"}
+  else{b.hidden=true;b.innerHTML="";$("saveDraft").textContent="Save ទុកសិន"}
+}
+function clearForm(){["loc","tot","wom","note"].forEach(function(i){$(i).value=""});$("act").value="";$("date").value=today()}
+function renderDrafts(){
+  var a=getDrafts(),w=$("draftWrap");
+  w.hidden=!a.length;
+  $("drafts").innerHTML=a.map(function(d){
+    return '<div class="draft"><div class="top"><span>'+esc(d.activity||"(មិនទាន់ជ្រើសសកម្មភាព)")+'</span><span>'+(d.total?esc(d.total)+' នាក់'+(d.women?' (ស្ត្រី '+esc(d.women)+')':''):'')+'</span></div>'+
+      '<div class="meta">'+esc(d.staff)+' · '+esc(d.date||"")+' · '+esc(d.project)+' · '+esc(d.location||"")+'</div>'+
+      '<div class="act"><button type="button" data-e="'+d.id+'">កែ (Edit)</button><button type="button" data-d="'+d.id+'">លុប</button></div></div>'}).join("");
+  $("drafts").querySelectorAll("[data-e]").forEach(function(b){b.onclick=function(){loadDraft(b.getAttribute("data-e"))}});
+  $("drafts").querySelectorAll("[data-d]").forEach(function(b){b.onclick=function(){delDraft(b.getAttribute("data-d"))}});
+}
+function delDraft(id,quiet){
+  if(!quiet&&!confirm("លុបសេចក្ដីព្រាងនេះ?"))return;
+  putDrafts(getDrafts().filter(function(d){return d.id!==id}));
+  if(editId===id){editId=null;showEdit()}
+  renderDrafts();
+}
+function loadDraft(id){
+  var d=getDrafts().filter(function(x){return x.id===id})[0];if(!d||!cfg)return;
+  $("staff").value=d.staff;ls("fl_staff",d.staff);
+  var s=cfg.staff.filter(function(x){return x.name===d.staff})[0];
+  $("secInfo").textContent=s&&s.section?"ផ្នែក៖ "+s.section:"";
+  ls("fl_proj","1");
+  $(d.project==="CE"?"p2":"p1").checked=true;
+  fillCats();
+  var cats=cfg.activities[d.project]||[],ci=-1;
+  cats.forEach(function(c,i){if(c.category===d.category)ci=i});
+  $("cat").value=ci>-1?String(ci):"";fillActs();
+  $("act").value=d.activity||"";
+  $("date").value=d.date||today();$("loc").value=d.location||"";
+  $("tot").value=d.total||"";$("wom").value=d.women||"";$("note").value=d.notes||"";
+  editId=id;showEdit();loadMine();
+  say("បានបើកសេចក្ដីព្រាង។ កែរួចអាច Save ឬ Submit បាន។","ok");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+$("saveDraft").onclick=function(){
+  var p=formData();
+  if(!p.staff){say("សូមជ្រើសរើសឈ្មោះបុគ្គលិកមុន Save។","err");return}
+  if(p.total!==""&&p.women!==""&&Number(p.women)>Number(p.total)){say("ចំនួនស្ត្រីមិនអាចច្រើនជាងចំនួនសរុបបានទេ។","err");return}
+  var a=getDrafts();
+  if(editId){
+    a=a.map(function(d){if(d.id===editId){p.id=d.id;return p}return d});
+  }else{
+    p.id="d"+Date.now();a.unshift(p);
+  }
+  putDrafts(a);
+  editId=null;showEdit();clearForm();renderDrafts();
+  say("បាន Save ទុកសិនហើយ ✓ (នៅលើឧបករណ៍នេះ)។ អាចកែវិញពីបញ្ជីខាងក្រោម។","ok");
+};
 
 var sumData=null;
 function showTab(t){
@@ -212,27 +303,67 @@ function loadSum(){
     var cur=$("ss").value,secs=[];
     d.rows.forEach(function(r){if(r.section&&secs.indexOf(r.section)<0)secs.push(r.section)});
     $("ss").innerHTML='<option value="">ទាំងអស់</option>'+secs.map(function(x){return '<option>'+esc(x)+'</option>'}).join("");
-    $("ss").value=cur;renderSum();
+    $("ss").value=cur;fillSumCats();renderSum();
   }).catch(function(e){$("sumOut").innerHTML='<div class="empty">មិនអាចទាញរបាយការណ៍បានទេ៖ '+esc(e.message)+'</div>'});
 }
+function fillSumCats(){
+  var sec=$("ss").value,cur=$("sc").value,cats=[];
+  sumData.rows.forEach(function(r){if((!sec||r.section===sec)&&r.category&&cats.indexOf(r.category)<0)cats.push(r.category)});
+  $("sc").innerHTML='<option value="">ទាំងអស់</option>'+cats.map(function(x){return '<option>'+esc(x)+'</option>'}).join("");
+  if(cats.indexOf(cur)>-1)$("sc").value=cur;
+  fillSumActs();
+}
+function fillSumActs(){
+  var sec=$("ss").value,cat=$("sc").value,cur=$("sa").value,acts=[];
+  sumData.rows.forEach(function(r){if((!sec||r.section===sec)&&(!cat||r.category===cat)&&r.activity&&acts.indexOf(r.activity)<0)acts.push(r.activity)});
+  $("sa").innerHTML='<option value="">ទាំងអស់</option>'+acts.map(function(x){return '<option>'+esc(x)+'</option>'}).join("");
+  if(acts.indexOf(cur)>-1)$("sa").value=cur;
+}
 function renderSum(){
-  var sec=$("ss").value,rows=sumData.rows.filter(function(r){return !sec||r.section===sec});
+  var sec=$("ss").value,cat=$("sc").value,act=$("sa").value,NOV="(មិនមានភូមិ)";
+  var rows=sumData.rows.filter(function(r){return (!sec||r.section===sec)&&(!cat||r.category===cat)&&(!act||r.activity===act)});
   if(!rows.length){$("sumOut").innerHTML='<div class="empty">មិនទាន់មានទិន្នន័យសម្រាប់ជម្រើសនេះទេ។</div>';return}
-  var tree={},T=0,W=0,N=0;
+  var tree={},T=0,W=0,N=0,allV={};
   rows.forEach(function(r){
-    var s=tree[r.section||"(គ្មាន Section)"]=tree[r.section||"(គ្មាន Section)"]||{t:0,w:0,c:{}};
-    var c=s.c[r.category||"(គ្មាន Category)"]=s.c[r.category||"(គ្មាន Category)"]||{t:0,w:0,rows:[]};
-    s.t+=r.total;s.w+=r.women;c.t+=r.total;c.w+=r.women;c.rows.push(r);T+=r.total;W+=r.women;N+=r.count;
+    var sn=r.section||"(គ្មាន Section)",cn=r.category||"(គ្មាន Category)";
+    var s=tree[sn]=tree[sn]||{t:0,w:0,c:{}};
+    var c=s.c[cn]=s.c[cn]||{t:0,w:0,a:{}};
+    var a=c.a[r.activity]=c.a[r.activity]||{t:0,w:0,n:0,v:{}};
+    var vn=String(r.village||"").trim(),vk=vn.toLowerCase()||NOV;
+    var v=a.v[vk]=a.v[vk]||{name:vn||NOV,n:0,t:0,w:0};
+    v.n+=r.count;v.t+=r.total;v.w+=r.women;
+    a.n+=r.count;a.t+=r.total;a.w+=r.women;
+    c.t+=r.total;c.w+=r.women;s.t+=r.total;s.w+=r.women;
+    T+=r.total;W+=r.women;N+=r.count;if(vk!==NOV)allV[vk]=1;
   });
-  var h='<div class="grand"><div><b>'+N+'</b><span>សកម្មភាពសរុប</span></div><div><b>'+T+'</b><span>អ្នកចូលរួមសរុប</span></div><div><b>'+W+'</b><span>ស្ត្រី</span></div></div>';
+  function vc(a){return Object.keys(a.v).filter(function(k){return k!==NOV}).length}
+  var h='<div class="grand"><div><b>'+N+'</b><span>ចំនួនដងសកម្មភាព</span></div><div><b>'+Object.keys(allV).length+'</b><span>ចំនួនភូមិ</span></div><div><b>'+T+'</b><span>អ្នកចូលរួមសរុប</span></div><div><b>'+W+'</b><span>ស្ត្រី</span></div></div>';
+  if(cat||act){
+    var by={};
+    rows.forEach(function(r){
+      var b=by[r.activity]=by[r.activity]||{n:0,t:0,w:0,v:{}};
+      var vn=String(r.village||"").trim().toLowerCase();
+      b.n+=r.count;b.t+=r.total;b.w+=r.women;if(vn)b.v[vn]=1;
+    });
+    var ml=$("sm").value||"ខែទាំងអស់";
+    h+='<div class="bd"><h3>'+esc(ml)+(cat?' · '+esc(cat):'')+(act?' · '+esc(act):'')+'</h3><div class="tw"><table><tr><th>សកម្មភាព</th><th class="num">ភូមិ</th><th class="num">ចំនួនដង</th><th class="num">អ្នកចូលរួម</th><th class="num">ស្ត្រី</th></tr>';
+    Object.keys(by).sort().forEach(function(k){var b=by[k];
+      h+='<tr><td>'+esc(k)+'</td><td class="num">'+Object.keys(b.v).length+'</td><td class="num">'+b.n+'</td><td class="num">'+b.t+'</td><td class="num">'+b.w+'</td></tr>'});
+    h+='</table></div></div>';
+  }
   Object.keys(tree).forEach(function(sn){
     var s=tree[sn];
     h+='<details open><summary><span>'+esc(sn)+'</span><span class="n">សរុប '+s.t+' · ស្ត្រី '+s.w+'</span></summary>';
     Object.keys(s.c).forEach(function(cn){
       var c=s.c[cn];
-      h+='<details><summary><span>'+esc(cn)+'</span><span class="n">សរុប '+c.t+' · ស្ត្រី '+c.w+'</span></summary><div class="tw"><table><tr><th>សកម្មភាព</th><th>ភូមិ</th><th class="num">ចំនួនដង</th><th class="num">សរុប</th><th class="num">ស្ត្រី</th></tr>';
-      c.rows.forEach(function(r){h+='<tr><td>'+esc(r.activity)+'</td><td>'+esc(r.village)+'</td><td class="num">'+r.count+'</td><td class="num">'+r.total+'</td><td class="num">'+r.women+'</td></tr>'});
-      h+='</table></div></details>';
+      h+='<details open><summary><span>'+esc(cn)+'</span><span class="n">សរុប '+c.t+' · ស្ត្រី '+c.w+'</span></summary>';
+      Object.keys(c.a).forEach(function(an){
+        var a=c.a[an],vs=Object.keys(a.v).map(function(k){return a.v[k]}).sort(function(x,y){return y.t-x.t});
+        h+='<details open><summary><span>'+esc(an)+'</span><span class="n">ភូមិ '+vc(a)+' · សរុប '+a.t+' · ស្ត្រី '+a.w+'</span></summary><div class="tw"><table><tr><th>ភូមិ</th><th class="num">ចំនួនដង</th><th class="num">សរុប</th><th class="num">ស្ត្រី</th></tr>';
+        vs.forEach(function(v){h+='<tr><td>'+esc(v.name)+'</td><td class="num">'+v.n+'</td><td class="num">'+v.t+'</td><td class="num">'+v.w+'</td></tr>'});
+        h+='</table></div></details>';
+      });
+      h+='</details>';
     });
     h+='</details>';
   });
@@ -241,10 +372,13 @@ function renderSum(){
 $("tLog").onclick=function(){showTab("log")};
 $("tSum").onclick=function(){showTab("sum")};
 $("sm").onchange=loadSum;
-$("ss").onchange=function(){if(sumData)renderSum()};
+$("ss").onchange=function(){if(sumData){fillSumCats();renderSum()}};
+$("sc").onchange=function(){if(sumData){fillSumActs();renderSum()}};
+$("sa").onchange=function(){if(sumData)renderSum()};
 
 $("date").value=today();
 loadConfig();
+renderDrafts();
 if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(function(){})}
 </script>
 </body>
