@@ -40,6 +40,20 @@ h2{font-size:1.1rem;margin:28px 0 8px}
 .log .top{display:flex;justify-content:space-between;gap:8px;font-weight:600}
 .log .meta{color:var(--muted);font-size:.88rem}
 .empty{color:var(--muted);padding:16px;text-align:center;border:1px dashed var(--line);border-radius:10px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 14px}
+.tabs button{font:inherit;font-weight:600;color:var(--ink);background:var(--surface);border:2px solid var(--line);border-radius:10px;padding:9px;cursor:pointer}
+.tabs button.on{background:var(--btn);color:var(--btnink);border-color:var(--btn)}
+details{background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
+details details{margin:6px 8px;background:var(--bg)}
+summary{cursor:pointer;padding:9px 12px;font-weight:600;display:flex;justify-content:space-between;gap:10px}
+summary span.n{color:var(--muted);font-weight:400;white-space:nowrap;font-size:.88rem}
+.tw{overflow-x:auto;padding:0 8px 8px}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{text-align:left;padding:6px 8px;border-top:1px solid var(--line);vertical-align:top}
+td.num,th.num{text-align:right;white-space:nowrap}
+.grand{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.grand div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.grand b{display:block;font-size:1.3rem;line-height:1.3}.grand span{color:var(--muted);font-size:.85rem}
 @media(max-width:520px){.row{grid-template-columns:1fr}}
 </style>
 </head>
@@ -48,6 +62,11 @@ h2{font-size:1.1rem;margin:28px 0 8px}
 <h1>កំណត់ហេតុសកម្មភាពចុះ Field</h1>
 <p class="sub">ទិន្នន័យបុគ្គលិក និងសកម្មភាពទាញពី Google Sheet ហើយកំណត់ហេតុរក្សាទុកតាមផ្ទាំងខែ។</p>
 
+<div class="tabs">
+  <button type="button" id="tLog" class="on">បញ្ចូលកំណត់ហេតុ</button>
+  <button type="button" id="tSum">របាយការណ៍សង្ខេប</button>
+</div>
+
 <div class="setup" id="setup" hidden>
   <b>ភ្ជាប់ជាមួយ Apps Script</b>
   <span>បិទភ្ជាប់ Web app URL (បញ្ចប់ដោយ /exec)</span>
@@ -55,6 +74,7 @@ h2{font-size:1.1rem;margin:28px 0 8px}
   <button class="btn" type="button" id="apiSave">រក្សាទុក URL</button>
 </div>
 
+<div id="viewLog">
 <form id="f" novalidate>
   <label>ឈ្មោះបុគ្គលិក<select id="staff" required></select></label>
   <div id="secInfo" class="sub" style="margin:-6px 0 0"></div>
@@ -82,6 +102,15 @@ h2{font-size:1.1rem;margin:28px 0 8px}
 
 <h2>កំណត់ហេតុខែនេះរបស់ខ្ញុំ</h2>
 <div id="mine"></div>
+</div>
+
+<div id="viewSum" hidden>
+  <div class="row" style="margin-bottom:12px">
+    <label>ខែ<select id="sm"><option value="">ខែទាំងអស់</option></select></label>
+    <label>ផ្នែក (Section)<select id="ss"><option value="">ទាំងអស់</option></select></label>
+  </div>
+  <div id="sumOut"></div>
+</div>
 </main>
 
 <script>
@@ -166,6 +195,53 @@ $("f").addEventListener("submit",function(e){
     }).catch(function(e){say("បញ្ជូនមិនបានទេ៖ "+e.message,"err")})
     .then(function(){$("go").disabled=false});
 });
+
+var sumData=null;
+function showTab(t){
+  $("viewLog").hidden=t!=="log";$("viewSum").hidden=t!=="sum";
+  $("tLog").classList.toggle("on",t==="log");$("tSum").classList.toggle("on",t==="sum");
+  if(t==="sum")loadSum();
+}
+function loadSum(){
+  if(!api()){$("sumOut").innerHTML='<div class="empty">សូមភ្ជាប់ URL របស់ Apps Script ជាមុន។</div>';return}
+  $("sumOut").innerHTML='<div class="empty">កំពុងទាញទិន្នន័យ...</div>';
+  fetch(api()+"?action=summary&month="+encodeURIComponent($("sm").value)).then(function(r){return r.json()}).then(function(d){
+    if(!d.ok)throw new Error(d.error);
+    sumData=d;
+    if($("sm").options.length<=1)$("sm").innerHTML='<option value="">ខែទាំងអស់</option>'+d.months.map(function(m){return '<option>'+esc(m)+'</option>'}).join("");
+    var cur=$("ss").value,secs=[];
+    d.rows.forEach(function(r){if(r.section&&secs.indexOf(r.section)<0)secs.push(r.section)});
+    $("ss").innerHTML='<option value="">ទាំងអស់</option>'+secs.map(function(x){return '<option>'+esc(x)+'</option>'}).join("");
+    $("ss").value=cur;renderSum();
+  }).catch(function(e){$("sumOut").innerHTML='<div class="empty">មិនអាចទាញរបាយការណ៍បានទេ៖ '+esc(e.message)+'</div>'});
+}
+function renderSum(){
+  var sec=$("ss").value,rows=sumData.rows.filter(function(r){return !sec||r.section===sec});
+  if(!rows.length){$("sumOut").innerHTML='<div class="empty">មិនទាន់មានទិន្នន័យសម្រាប់ជម្រើសនេះទេ។</div>';return}
+  var tree={},T=0,W=0,N=0;
+  rows.forEach(function(r){
+    var s=tree[r.section||"(គ្មាន Section)"]=tree[r.section||"(គ្មាន Section)"]||{t:0,w:0,c:{}};
+    var c=s.c[r.category||"(គ្មាន Category)"]=s.c[r.category||"(គ្មាន Category)"]||{t:0,w:0,rows:[]};
+    s.t+=r.total;s.w+=r.women;c.t+=r.total;c.w+=r.women;c.rows.push(r);T+=r.total;W+=r.women;N+=r.count;
+  });
+  var h='<div class="grand"><div><b>'+N+'</b><span>សកម្មភាពសរុប</span></div><div><b>'+T+'</b><span>អ្នកចូលរួមសរុប</span></div><div><b>'+W+'</b><span>ស្ត្រី</span></div></div>';
+  Object.keys(tree).forEach(function(sn){
+    var s=tree[sn];
+    h+='<details open><summary><span>'+esc(sn)+'</span><span class="n">សរុប '+s.t+' · ស្ត្រី '+s.w+'</span></summary>';
+    Object.keys(s.c).forEach(function(cn){
+      var c=s.c[cn];
+      h+='<details><summary><span>'+esc(cn)+'</span><span class="n">សរុប '+c.t+' · ស្ត្រី '+c.w+'</span></summary><div class="tw"><table><tr><th>សកម្មភាព</th><th>ភូមិ</th><th class="num">ចំនួនដង</th><th class="num">សរុប</th><th class="num">ស្ត្រី</th></tr>';
+      c.rows.forEach(function(r){h+='<tr><td>'+esc(r.activity)+'</td><td>'+esc(r.village)+'</td><td class="num">'+r.count+'</td><td class="num">'+r.total+'</td><td class="num">'+r.women+'</td></tr>'});
+      h+='</table></div></details>';
+    });
+    h+='</details>';
+  });
+  $("sumOut").innerHTML=h;
+}
+$("tLog").onclick=function(){showTab("log")};
+$("tSum").onclick=function(){showTab("sum")};
+$("sm").onchange=loadSum;
+$("ss").onchange=function(){if(sumData)renderSum()};
 
 $("date").value=today();
 loadConfig();
