@@ -135,6 +135,9 @@ td.num,th.num{text-align:right;white-space:nowrap}
     <label>Category<select id="sc"><option value="">ទាំងអស់</option></select></label>
     <label>សកម្មភាព (Activity)<select id="sa"><option value="">ទាំងអស់</option></select></label>
   </div>
+  <div class="row" style="margin-bottom:12px">
+    <label>IRPG<select id="si"><option value="">ទាំងអស់</option></select></label>
+  </div>
   <div id="sumOut"></div>
 </div>
 </main>
@@ -212,7 +215,7 @@ function validate(p){
 }
 function send(p,draftId,btns){
   var s=cfg&&cfg.staff.filter(function(x){return x.name===p.staff})[0];p.section=s?s.section:"";
-  var body=JSON.stringify({staff:p.staff,date:p.date,project:p.project,category:p.category,activity:p.activity,location:p.location,total:p.total,women:p.women,notes:p.notes,section:p.section});
+  var body=JSON.stringify({staff:p.staff,date:p.date,project:p.project,category:p.category,activity:p.activity,location:p.location,irpg:(p.irpg&&p.irpg!==OTHER?p.irpg:irpgOfVillage(p.location)),total:p.total,women:p.women,notes:p.notes,section:p.section});
   btns.forEach(function(b){b.disabled=true});say("កំពុងបញ្ជូន...");
   fetch(api(),{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:body})
     .then(function(r){return r.json()}).then(function(d){
@@ -245,6 +248,8 @@ var IRPG={
  "IRPG11":["Pha Bang","La Kay","Nhang Sum"]
 };
 var OTHER="__other";
+function normIrpg(x){var m=/^IRPG0*(\d+)$/i.exec(String(x||"").trim());return m?"IRPG"+("0"+m[1]).slice(-2):String(x||"").trim()}
+function irpgOfVillage(v){var k=String(v||"").trim().toLowerCase(),g="";Object.keys(IRPG).forEach(function(i){IRPG[i].forEach(function(n){if(n.toLowerCase()===k)g=i})});return g}
 function fillIrpg(){
   $("irpg").innerHTML='<option value="">ជ្រើសរើស IRPG</option>'+Object.keys(IRPG).map(function(k){return '<option>'+esc(k)+'</option>'}).join("")+'<option value="'+OTHER+'">ផ្សេងៗ</option>';
   fillVil();
@@ -348,11 +353,17 @@ function loadSum(){
   fetch(api()+"?action=summary&month="+encodeURIComponent($("sm").value)).then(function(r){return r.json()}).then(function(d){
     if(!d.ok)throw new Error(d.error);
     sumData=d;
+    d.rows.forEach(function(r){r.irp=normIrpg(r.irpg)||irpgOfVillage(r.village)});
     if($("sm").options.length<=1)$("sm").innerHTML='<option value="">ខែទាំងអស់</option>'+d.months.map(function(m){return '<option>'+esc(m)+'</option>'}).join("");
     var cur=$("ss").value,secs=[];
     d.rows.forEach(function(r){if(r.section&&secs.indexOf(r.section)<0)secs.push(r.section)});
     $("ss").innerHTML='<option value="">ទាំងអស់</option>'+secs.map(function(x){return '<option>'+esc(x)+'</option>'}).join("");
-    $("ss").value=cur;fillSumCats();renderSum();
+    $("ss").value=cur;
+    var ci=$("si").value,irs=[];
+    d.rows.forEach(function(r){if(r.irp&&irs.indexOf(r.irp)<0)irs.push(r.irp)});irs.sort();
+    $("si").innerHTML='<option value="">ទាំងអស់</option>'+irs.map(function(x){return '<option>'+esc(x)+'</option>'}).join("");
+    $("si").value=ci;
+    fillSumCats();renderSum();
   }).catch(function(e){$("sumOut").innerHTML='<div class="empty">មិនអាចទាញរបាយការណ៍បានទេ៖ '+esc(e.message)+'</div>'});
 }
 function fillSumCats(){
@@ -369,8 +380,8 @@ function fillSumActs(){
   if(acts.indexOf(cur)>-1)$("sa").value=cur;
 }
 function renderSum(){
-  var sec=$("ss").value,cat=$("sc").value,act=$("sa").value,NOV="(មិនមានភូមិ)";
-  var rows=sumData.rows.filter(function(r){return (!sec||r.section===sec)&&(!cat||r.category===cat)&&(!act||r.activity===act)});
+  var sec=$("ss").value,cat=$("sc").value,act=$("sa").value,irp=$("si").value,NOV="(មិនមានភូមិ)";
+  var rows=sumData.rows.filter(function(r){return (!sec||r.section===sec)&&(!cat||r.category===cat)&&(!act||r.activity===act)&&(!irp||r.irp===irp)});
   if(!rows.length){$("sumOut").innerHTML='<div class="empty">មិនទាន់មានទិន្នន័យសម្រាប់ជម្រើសនេះទេ។</div>';return}
   var tree={},T=0,W=0,N=0,allV={};
   rows.forEach(function(r){
@@ -387,7 +398,7 @@ function renderSum(){
   });
   function vc(a){return Object.keys(a.v).filter(function(k){return k!==NOV}).length}
   var h='<div class="grand"><div><b>'+N+'</b><span>ចំនួនដងសកម្មភាព</span></div><div><b>'+Object.keys(allV).length+'</b><span>ចំនួនភូមិ</span></div><div><b>'+T+'</b><span>អ្នកចូលរួមសរុប</span></div><div><b>'+W+'</b><span>ស្ត្រី</span></div></div>';
-  if(cat||act){
+  if(cat||act||irp){
     var by={};
     rows.forEach(function(r){
       var b=by[r.activity]=by[r.activity]||{n:0,t:0,w:0,v:{}};
@@ -395,7 +406,7 @@ function renderSum(){
       b.n+=r.count;b.t+=r.total;b.w+=r.women;if(vn)b.v[vn]=1;
     });
     var ml=$("sm").value||"ខែទាំងអស់";
-    h+='<div class="bd"><h3>'+esc(ml)+(cat?' · '+esc(cat):'')+(act?' · '+esc(act):'')+'</h3><div class="tw"><table><tr><th>សកម្មភាព</th><th class="num">ភូមិ</th><th class="num">ចំនួនដង</th><th class="num">អ្នកចូលរួម</th><th class="num">ស្ត្រី</th></tr>';
+    h+='<div class="bd"><h3>'+esc(ml)+(irp?' · '+esc(irp):'')+(cat?' · '+esc(cat):'')+(act?' · '+esc(act):'')+'</h3><div class="tw"><table><tr><th>សកម្មភាព</th><th class="num">ភូមិ</th><th class="num">ចំនួនដង</th><th class="num">អ្នកចូលរួម</th><th class="num">ស្ត្រី</th></tr>';
     Object.keys(by).sort().forEach(function(k){var b=by[k];
       h+='<tr><td>'+esc(k)+'</td><td class="num">'+Object.keys(b.v).length+'</td><td class="num">'+b.n+'</td><td class="num">'+b.t+'</td><td class="num">'+b.w+'</td></tr>'});
     h+='</table></div></div>';
@@ -424,6 +435,7 @@ $("sm").onchange=loadSum;
 $("ss").onchange=function(){if(sumData){fillSumCats();renderSum()}};
 $("sc").onchange=function(){if(sumData){fillSumActs();renderSum()}};
 $("sa").onchange=function(){if(sumData)renderSum()};
+$("si").onchange=function(){if(sumData)renderSum()};
 
 $("date").value=today();
 fillIrpg();
