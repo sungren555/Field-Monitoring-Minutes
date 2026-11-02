@@ -98,10 +98,12 @@ td.num,th.num{text-align:right;white-space:nowrap}
   </div>
   <label>ប្រភេទ (Category)<select id="cat" required></select></label>
   <label>សកម្មភាព<select id="act" required></select></label>
+  <label>កាលបរិច្ឆេទ<input type="date" id="date" required></label>
   <div class="row">
-    <label>កាលបរិច្ឆេទ<input type="date" id="date" required></label>
-    <label>ទីតាំង<input id="loc" placeholder="ភូមិ / ឃុំ / ស្រុក" required></label>
+    <label>IRPG<select id="irpg"></select></label>
+    <label>ភូមិ<select id="vil"></select></label>
   </div>
+  <input id="loc" placeholder="បញ្ចូលឈ្មោះទីតាំង (ភូមិ / ឃុំ / ស្រុក)" hidden>
   <div class="row">
     <label>អ្នកចូលរួមសរុប (នាក់)<input type="number" id="tot" min="0" inputmode="numeric" placeholder="មិនបង្ខំ"></label>
     <label>ក្នុងនោះស្ត្រី (នាក់)<input type="number" id="wom" min="0" inputmode="numeric" placeholder="មិនបង្ខំ"></label>
@@ -206,7 +208,7 @@ $("f").addEventListener("submit",function(e){
   e.preventDefault();
   var c=(cfg&&cfg.activities[proj()]||[])[$("cat").value];
   var p={staff:$("staff").value,date:$("date").value,project:proj(),category:c?c.category:"",activity:$("act").value,
-    location:$("loc").value.trim(),total:$("tot").value,women:$("wom").value,notes:$("note").value.trim()};
+    location:getLoc(),total:$("tot").value,women:$("wom").value,notes:$("note").value.trim()};
   var s=cfg&&cfg.staff.filter(function(x){return x.name===p.staff})[0];p.section=s?s.section:"";
   if(!p.staff||!p.date||!c||!p.activity||!p.location){say("សូមបំពេញ ឈ្មោះ Category សកម្មភាព កាលបរិច្ឆេទ និងទីតាំង។","err");return}
   if(p.total!==""&&p.women!==""&&Number(p.women)>Number(p.total)){say("ចំនួនស្ត្រីមិនអាចច្រើនជាងចំនួនសរុបបានទេ។","err");return}
@@ -216,10 +218,42 @@ $("f").addEventListener("submit",function(e){
       if(!d.ok)throw new Error(d.error);
       say("បានបញ្ជូនចូលផ្ទាំង "+d.tab+" ហើយ ✓","ok");
       if(editId){delDraft(editId,true)}editId=null;showEdit();
-      ["loc","tot","wom","note"].forEach(function(i){$(i).value=""});$("act").value="";loadMine();
+      ["loc","tot","wom","note"].forEach(function(i){$(i).value=""});$("vil").value="";showLoc();$("act").value="";loadMine();
     }).catch(function(e){say("បញ្ជូនមិនបានទេ៖ "+e.message,"err")})
     .then(function(){$("go").disabled=false});
 });
+
+/* ===== IRPG -> ភូមិ ===== */
+var IRPG={
+ "IRPG08":["Khes Kroam","Khes Svay","Pong Kriel","Kham Phouk"],
+ "IRPG09":["Chantu","Ban Moung","Siem Pang","Samor","Phum Lun","Keng Nhai","Dan Loung"],
+ "IRPG10":["Peam Khes","Kanchanh Kouk","Srae Russei","Teteam","O'Chay"],
+ "IRPG11":["Pha Bang","La Kay","Nhang Sum"]
+};
+var OTHER="__other";
+function fillIrpg(){
+  $("irpg").innerHTML='<option value="">ជ្រើសរើស IRPG</option>'+Object.keys(IRPG).map(function(k){return '<option>'+esc(k)+'</option>'}).join("")+'<option value="'+OTHER+'">ផ្សេងៗ</option>';
+  fillVil();
+}
+function fillVil(){
+  var g=$("irpg").value,l=IRPG[g]||[];
+  $("vil").innerHTML='<option value="">ជ្រើសរើសភូមិ</option>'+l.map(function(v){return '<option>'+esc(v)+'</option>'}).join("")+(g?'<option value="'+OTHER+'">ផ្សេងៗ (វាយបញ្ចូល)</option>':'');
+  if(g===OTHER){$("vil").innerHTML='<option value="'+OTHER+'">ផ្សេងៗ (វាយបញ្ចូល)</option>';$("vil").value=OTHER}
+  showLoc();
+}
+function showLoc(){$("loc").hidden=$("vil").value!==OTHER}
+function getLoc(){return $("vil").value===OTHER?$("loc").value.trim():$("vil").value}
+function setLoc(g,loc){
+  var guess=g;
+  if(!guess||!(IRPG[guess]||[]).length&&guess!==OTHER){guess="";Object.keys(IRPG).forEach(function(k){if(IRPG[k].indexOf(loc)>-1)guess=k})}
+  $("irpg").value=guess||(loc?OTHER:"");fillVil();
+  if(guess&&guess!==OTHER&&IRPG[guess].indexOf(loc)>-1){$("vil").value=loc;$("loc").value=""}
+  else if(loc){$("irpg").value=OTHER;fillVil();$("loc").value=loc}
+  else{$("loc").value=""}
+  showLoc();
+}
+$("irpg").onchange=fillVil;
+$("vil").onchange=showLoc;
 
 /* ===== Draft (Save ទុកសិន) ===== */
 var editId=null;
@@ -228,7 +262,7 @@ function putDrafts(a){ls("fl_drafts",JSON.stringify(a))}
 function formData(){
   var c=(cfg&&cfg.activities[proj()]||[])[$("cat").value];
   return {staff:$("staff").value,date:$("date").value,project:proj(),category:c?c.category:"",activity:$("act").value,
-    location:$("loc").value.trim(),total:$("tot").value,women:$("wom").value,notes:$("note").value.trim()};
+    location:getLoc(),irpg:$("irpg").value,total:$("tot").value,women:$("wom").value,notes:$("note").value.trim()};
 }
 function showEdit(){
   var b=$("editBar");
@@ -237,7 +271,7 @@ function showEdit(){
     $("saveDraft").textContent="Save ការកែប្រែ"}
   else{b.hidden=true;b.innerHTML="";$("saveDraft").textContent="Save ទុកសិន"}
 }
-function clearForm(){["loc","tot","wom","note"].forEach(function(i){$(i).value=""});$("act").value="";$("date").value=today()}
+function clearForm(){["loc","tot","wom","note"].forEach(function(i){$(i).value=""});$("irpg").value="";fillVil();$("act").value="";$("date").value=today()}
 function renderDrafts(){
   var a=getDrafts(),w=$("draftWrap");
   w.hidden=!a.length;
@@ -266,7 +300,7 @@ function loadDraft(id){
   cats.forEach(function(c,i){if(c.category===d.category)ci=i});
   $("cat").value=ci>-1?String(ci):"";fillActs();
   $("act").value=d.activity||"";
-  $("date").value=d.date||today();$("loc").value=d.location||"";
+  $("date").value=d.date||today();setLoc(d.irpg,d.location||"");
   $("tot").value=d.total||"";$("wom").value=d.women||"";$("note").value=d.notes||"";
   editId=id;showEdit();loadMine();
   say("បានបើកសេចក្ដីព្រាង។ កែរួចអាច Save ឬ Submit បាន។","ok");
@@ -377,6 +411,7 @@ $("sc").onchange=function(){if(sumData){fillSumActs();renderSum()}};
 $("sa").onchange=function(){if(sumData)renderSum()};
 
 $("date").value=today();
+fillIrpg();
 loadConfig();
 renderDrafts();
 if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(function(){})}
