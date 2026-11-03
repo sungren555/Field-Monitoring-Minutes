@@ -5,13 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>កំណត់ហេតុសកម្មភាពចុះ Field</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#2b4a2f">
+<meta name="theme-color" content="#2b4a2f" id="metaTheme">
+<script>(function(){try{var t=localStorage.getItem("fl_theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f3f5ee;--surface:#fff;--ink:#1d2a1f;--muted:#5d6b5f;--line:#d5dccd;--rice:#b8860b;--rice-bg:#f6ecc9;--ce:#2f6f6a;--ce-bg:#d7ece9;--btn:#2b4a2f;--btnink:#fff;--err:#a33;--ok:#2b6b34}
-@media (prefers-color-scheme:dark){:root{--bg:#141a15;--surface:#1e271f;--ink:#e8eee5;--muted:#9fad9f;--line:#334034;--rice:#e3b94a;--rice-bg:#3a3217;--ce:#6cc2ba;--ce-bg:#1d3a37;--btn:#9bd09f;--btnink:#10200f;--err:#f08a8a;--ok:#8fd49a}}
+:root{color-scheme:light;--bg:#f2f5ee;--surface:#fff;--field:#f7f9f4;--ink:#1b2a1e;--muted:#617063;--line:#dde4d6;--rice:#b8860b;--rice-bg:#f8efcf;--ce:#2f6f6a;--ce-bg:#d9eeeb;--btn:#2b4a2f;--btnink:#fff;--err:#b03030;--ok:#2b6b34;--shadow:0 1px 2px rgba(30,50,30,.06),0 6px 20px rgba(30,50,30,.07)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0f1511;--surface:#18211a;--field:#101712;--ink:#e8eee5;--muted:#9fad9f;--line:#2c392e;--rice:#e3b94a;--rice-bg:#3a3217;--ce:#6cc2ba;--ce-bg:#1d3a37;--btn:#9bd09f;--btnink:#10200f;--err:#f08a8a;--ok:#8fd49a;--shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35)}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0f1511;--surface:#18211a;--field:#101712;--ink:#e8eee5;--muted:#9fad9f;--line:#2c392e;--rice:#e3b94a;--rice-bg:#3a3217;--ce:#6cc2ba;--ce-bg:#1d3a37;--btn:#9bd09f;--btnink:#10200f;--err:#f08a8a;--ok:#8fd49a;--shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans Khmer",system-ui,sans-serif;line-height:1.7}
 main{max-width:760px;margin:0 auto;padding:20px 16px 48px}
@@ -65,13 +67,53 @@ td.num,th.num{text-align:right;white-space:nowrap}
 .editing[hidden]{display:none}
 .bd{background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-bottom:12px;padding:8px 0 4px}
 .bd h3{font-size:.98rem;margin:0 0 4px;padding:0 12px}
-@media(max-width:520px){.row{grid-template-columns:1fr}}
+
+/* ===== New look ===== */
+body{transition:background .25s,color .25s;background:var(--bg) radial-gradient(900px 260px at 50% -80px,color-mix(in srgb,var(--rice) 16%,transparent),transparent) no-repeat}
+header.app{display:flex;align-items:center;gap:12px;margin:2px 0 16px}
+header.app h1{margin:0;font-size:1.3rem;line-height:1.4}
+header.app .sub{margin:0;font-size:.85rem;line-height:1.5}
+.logo{width:46px;height:46px;border-radius:13px;flex:none;box-shadow:var(--shadow)}
+.theme-btn{margin-left:auto;flex:none;width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;display:grid;place-items:center;box-shadow:var(--shadow);transition:transform .15s}
+.theme-btn:hover{transform:rotate(18deg)}
+.theme-btn svg{width:20px;height:20px}
+form{counter-reset:g;border-radius:18px;padding:18px;gap:18px;box-shadow:var(--shadow);border-color:var(--line)}
+.grp{display:grid;gap:12px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.grp.last{border-bottom:0;padding-bottom:0}
+.grp-t{display:flex;align-items:center;gap:8px;margin:0;font-size:.82rem;font-weight:700;color:var(--muted);letter-spacing:.02em}
+.grp-t::before{counter-increment:g;content:counter(g);width:22px;height:22px;border-radius:50%;background:var(--btn);color:var(--btnink);display:grid;place-items:center;font-size:.74rem;flex:none}
+label{font-weight:600;font-size:.9rem;color:var(--ink)}
+input,select,textarea{background:var(--field);border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;transition:border-color .15s,box-shadow .15s}
+input:hover,select:hover,textarea:hover{border-color:color-mix(in srgb,var(--btn) 40%,var(--line))}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--btn);box-shadow:0 0 0 4px color-mix(in srgb,var(--btn) 18%,transparent)}
+input::placeholder,textarea::placeholder{color:var(--muted);opacity:.7}
+.seg label{border-radius:12px;border-width:1.5px;background:var(--field);font-weight:600;transition:all .15s}
+.seg input:checked+label.r{box-shadow:0 0 0 3px color-mix(in srgb,var(--rice) 22%,transparent)}
+.seg input:checked+label.c{box-shadow:0 0 0 3px color-mix(in srgb,var(--ce) 22%,transparent)}
+.btn,.btn2{border-radius:12px;padding:13px 16px;transition:transform .12s,box-shadow .15s,filter .15s}
+.btn{box-shadow:0 6px 16px color-mix(in srgb,var(--btn) 30%,transparent)}
+.btn:hover:not([disabled]),.btn2:hover:not([disabled]){transform:translateY(-1px);filter:brightness(1.05)}
+.btn:active,.btn2:active{transform:translateY(0)}
+.btn2{border-width:1.5px}
+.tabs{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px;box-shadow:var(--shadow)}
+.tabs button{border:0;background:transparent;border-radius:10px;padding:10px;color:var(--muted);transition:all .15s}
+.tabs button.on{background:var(--btn);color:var(--btnink);box-shadow:0 3px 10px color-mix(in srgb,var(--btn) 30%,transparent)}
+.log,.draft,details,.grand div,.bd{box-shadow:var(--shadow);border-radius:12px}
+h2{font-size:1rem;color:var(--muted);letter-spacing:.02em}
+.setup{border-radius:14px}
+@media(max-width:520px){.row{grid-template-columns:1fr}header.app .sub{display:none}}
 </style>
 </head>
 <body>
 <main>
-<h1>កំណត់ហេតុសកម្មភាពចុះ Field</h1>
-<p class="sub">ទិន្នន័យបុគ្គលិក និងសកម្មភាពទាញពី Google Sheet ហើយកំណត់ហេតុរក្សាទុកតាមផ្ទាំងខែ។</p>
+<header class="app">
+  <img class="logo" src="icon-192.png" alt="">
+  <div>
+    <h1>កំណត់ហេតុសកម្មភាពចុះ Field</h1>
+    <p class="sub">ទិន្នន័យទាញពី Google Sheet ហើយរក្សាទុកតាមផ្ទាំងខែ។</p>
+  </div>
+  <button type="button" class="theme-btn" id="themeBtn" aria-label="ប្តូរ Dark/Light mode" title="ប្តូរ Dark / Light"></button>
+</header>
 
 <div class="tabs">
   <button type="button" id="tLog" class="on">បញ្ចូលកំណត់ហេតុ</button>
@@ -87,6 +129,7 @@ td.num,th.num{text-align:right;white-space:nowrap}
 
 <div id="viewLog">
 <form id="f" novalidate>
+  <div class="grp"><h3 class="grp-t">បុគ្គលិក និងគម្រោង</h3>
   <label>ឈ្មោះបុគ្គលិក<select id="staff" required></select></label>
   <div id="secInfo" class="sub" style="margin:-6px 0 0"></div>
   <div>
@@ -96,19 +139,26 @@ td.num,th.num{text-align:right;white-space:nowrap}
       <div><input type="radio" name="proj" id="p2" value="CE"><label for="p2" class="c">CE (Community Engagement)</label></div>
     </div>
   </div>
+  </div>
+  <div class="grp"><h3 class="grp-t">សកម្មភាព</h3>
   <label>ប្រភេទ (Category)<select id="cat" required></select></label>
   <label>សកម្មភាព<select id="act" required></select></label>
+  </div>
+  <div class="grp"><h3 class="grp-t">កាលបរិច្ឆេទ និងទីតាំង</h3>
   <label>កាលបរិច្ឆេទ<input type="date" id="date" required></label>
   <div class="row">
     <label>IRPG<select id="irpg"></select></label>
     <label>ភូមិ<select id="vil"></select></label>
   </div>
   <input id="loc" placeholder="បញ្ចូលឈ្មោះទីតាំង (ភូមិ / ឃុំ / ស្រុក)" hidden>
+  </div>
+  <div class="grp last"><h3 class="grp-t">អ្នកចូលរួម និងកំណត់ត្រា</h3>
   <div class="row">
     <label>អ្នកចូលរួមសរុប (នាក់)<input type="number" id="tot" min="0" inputmode="numeric" placeholder="មិនបង្ខំ"></label>
     <label>ក្នុងនោះស្ត្រី (នាក់)<input type="number" id="wom" min="0" inputmode="numeric" placeholder="មិនបង្ខំ"></label>
   </div>
   <label>កំណត់ត្រា / លទ្ធផល<textarea id="note" rows="3"></textarea></label>
+  </div>
   <div class="msg" id="msg" role="status"></div>
   <div class="editing" id="editBar" hidden></div>
   <div class="btns">
@@ -147,6 +197,27 @@ td.num,th.num{text-align:right;white-space:nowrap}
 var API_URL = "https://script.google.com/macros/s/AKfycbxmceczGxDx8RLZsGSPOhwtfP3HnQtRNOynUcdRkq1qdvl2KgB6i0Ui3nIvZh-u5cyJ/exec";
 
 var $ = function(i){return document.getElementById(i)};
+
+/* ===== Dark / Light mode ===== */
+var ICON_SUN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+var ICON_MOON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+function curTheme(){
+  var a=document.documentElement.getAttribute("data-theme");
+  return a||(window.matchMedia&&matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
+}
+function paintTheme(){
+  var t=curTheme();
+  $("themeBtn").innerHTML=t==="dark"?ICON_SUN:ICON_MOON;
+  $("themeBtn").setAttribute("aria-label",t==="dark"?"ប្តូរទៅ Light mode":"ប្តូរទៅ Dark mode");
+  $("metaTheme").setAttribute("content",t==="dark"?"#0f1511":"#2b4a2f");
+}
+$("themeBtn").onclick=function(){
+  var n=curTheme()==="dark"?"light":"dark";
+  document.documentElement.setAttribute("data-theme",n);
+  try{localStorage.setItem("fl_theme",n)}catch(e){}
+  paintTheme();
+};
+paintTheme();
 var cfg = null;
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
